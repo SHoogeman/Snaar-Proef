@@ -97,6 +97,8 @@ class Scope:
         display(Image(data))
 
     def get_trace(self, channel_number, npoints = 10000, save_file=True):
+        ''' Function for grabbing traces from the scope. Channel can be a number
+        from 1 to 4. You can use npoints = "all" to grab all the points in the 
         # This is largerly copy-pasted from the manual
         sds = self.dev
         
@@ -157,8 +159,7 @@ class Scope:
         sds.write(":WAVeform:STARt 0")
         # Get the waveform points and confirm the number of waveform slice reads
         points_in_trace = float(sds.query(":ACQuire:POINts?").strip())
-        print("Total trace points: %d" % points_in_trace)
-        if not npoints:
+        if npoints == "all":
             points = points_in_trace
         else:
             if npoints > points_in_trace:
@@ -167,7 +168,7 @@ class Scope:
                 points = points_in_trace
             else:
                 points = npoints
-        print("Retreiving %d points" % npoints)
+        print("Retreiving %d points" % points)
         one_piece_num = float(sds.query(":WAVeform:MAXPoint?").strip())
         read_times = math.ceil(points / one_piece_num)
         # Set the number of read points per slice, if the waveform points is greater than the maximum
@@ -175,7 +176,9 @@ class Scope:
         if points > one_piece_num:
             sds.write(":WAVeform:POINt {}".format(one_piece_num))
             # Choose the format of the data returned
-            sds.write(":WAVeform:WIDTh BYTE")
+        else:
+            sds.write(":WAVeform:POINt %d" % points)
+        sds.write(":WAVeform:WIDTh BYTE")
         if adc_bit > 8:
             sds.write(":WAVeform:WIDTh WORD")
         #Get the waveform data for each slice
