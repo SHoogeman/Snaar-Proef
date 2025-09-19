@@ -16,19 +16,22 @@ def get_instrument(keyword):
     resource_list = rm.list_resources()
     for r in resource_list:
         if keyword in r:
+            print("Connecting to scope at resource:", r)
             instrument = rm.open_resource(r)
             break
     return instrument
 
-def bokeh_plot(x,y):
+def bokeh_plot(x,y, show_plot=True):
     p = figure(height=300, width=600) 
     p.sizing_mode = "scale_width"
     p.line(x,y)
-    show(p)
+    if show_plot:
+        show(p)
+    return(p)
 
 class Geneartor:
-    def __init__(self, visa_resource):
-        self.dev = visa_resource
+    def __init__(self, device_keyword):
+        self.dev = get_instrument(device_keyword)
 
     def query(self, query_string):
         return self.dev.query(query_string)
@@ -49,7 +52,7 @@ class Geneartor:
         if self.check_channel(ch):
             self.dev.write("C%d:BSWV FRQ,%.3f" % (ch, freq))
 
-    def set_amplitudte(self, ch, amp):
+    def set_amplitude(self, ch, amp):
         if self.check_channel(ch):
             self.dev.write("C%d:BSWV AMP,%.3f" % (ch, amp))
 
@@ -68,8 +71,8 @@ class Geneartor:
         display(Image(data))
         
 class Scope:
-    def __init__(self, visa_resource):
-        self.dev = visa_resource
+    def __init__(self, device_keyword):
+        self.dev = get_instrument(device_keyword)
         # needed for reading traces
         self.dev.timeout = 2000 # default value is 2000(2s)
         self.dev.chunk_size = 20 * 1024 * 1024 # default value is 20*1024(20k bytes)
