@@ -27,7 +27,8 @@ def bokeh_plot(x,y, show_plot=True):
     p.line(x,y)
     if show_plot:
         show(p)
-    return(p)
+    else:
+        return(p)
 
 class Geneartor:
     def __init__(self, device_keyword):
