@@ -99,6 +99,7 @@ class Scope:
     def get_trace(self, channel_number, npoints = 10000, save_file=True):
         ''' Function for grabbing traces from the scope. Channel can be a number
         from 1 to 4. You can use npoints = "all" to grab all the points in the 
+        trace.'''
         # This is largerly copy-pasted from the manual
         sds = self.dev
         
