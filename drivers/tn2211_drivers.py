@@ -10,6 +10,9 @@ from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
 output_notebook()
 
+def refresh_bokeh():
+    output_notebook()
+
 def get_instrument(keyword):
     instrument = None
     rm =  pyvisa.ResourceManager()
