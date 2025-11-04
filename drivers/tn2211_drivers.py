@@ -73,13 +73,15 @@ class Geneartor:
             with open(filename, "wb") as f:
                 f.write(data)        
         display(Image(data))
-        
+
 class Scope:
     def __init__(self, device_keyword):
         self.dev = get_instrument(device_keyword)
         # needed for reading traces
         self.dev.timeout = 2000 # default value is 2000(2s)
         self.dev.chunk_size = 20 * 1024 * 1024 # default value is 20*1024(20k bytes)
+        print("Setting memory depth to 10k points")
+        self.write("ACQ:MDEP 10k")
 
     def query(self, query_string):
         return self.dev.query(query_string)
@@ -241,4 +243,4 @@ class Scope:
             np.savetxt(filename, np.array([time_data,volt_value]).T)
             
         return time_data, volt_value
-        
+
