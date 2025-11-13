@@ -5,6 +5,7 @@ import math
 import struct
 import time
 import numpy as np
+import os
 
 from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
@@ -33,7 +34,16 @@ def bokeh_plot(x,y, show_plot=True):
     else:
         return(p)
 
-class Geneartor:
+def get_date_folder():
+    # Creating it if it does not yet exist
+    name = datetime.datetime.now().strftime("%Y-%m-%d")
+    try:
+        os.makedirs(name)
+    except OSError as e:
+        ;
+    return name + "/"
+
+class Generator:
     def __init__(self, device_keyword):
         self.dev = get_instrument(device_keyword)
 
@@ -70,7 +80,7 @@ class Geneartor:
         if save_file:
             timestamp = datetime.datetime.now()
             filename = timestamp.strftime("generator_screenshot_%Y-%m-%d-%H.%M.%S.png")
-            with open(filename, "wb") as f:
+            with open(get_date_folder() + filename, "wb") as f:
                 f.write(data)        
         display(Image(data))
 
@@ -98,7 +108,7 @@ class Scope:
         if save_file:
             timestamp = datetime.datetime.now()
             filename = timestamp.strftime("scope_screenshot_%Y-%m-%d-%H.%M.%S.png")
-            with open(filename, "wb") as f:
+            with open(get_date_folder() + filename, "wb") as f:
                 f.write(data)
         display(Image(data))
 
@@ -240,7 +250,7 @@ class Scope:
         if save_file:
             timestamp = datetime.datetime.now()
             filename = timestamp.strftime("scope_trace_%Y-%m-%d-%H.%M.%S.dat")
-            np.savetxt(filename, np.array([time_data,volt_value]).T)
+            np.savetxt(get_date_folder() + filename, np.array([time_data,volt_value]).T)
             
         return time_data, volt_value
 
