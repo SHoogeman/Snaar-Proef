@@ -40,7 +40,8 @@ def get_date_folder():
     try:
         os.makedirs(name)
     except OSError as e:
-        ;
+        # do nothing
+        pass
     return name + "/"
 
 class Generator:
