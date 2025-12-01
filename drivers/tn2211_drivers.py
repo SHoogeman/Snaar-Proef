@@ -241,6 +241,9 @@ class Scope:
         i = np.linspace(0, N-1, N)
         volt_value = convert_data / vcode_per * float(vdiv) -float(ofst)
         time_data = float(tdiv)*HORI_NUM/2 + i*interval + float(trdl)
+        # This is not giving the right values for the timebase. This hack
+        # will hopefullyu fix it. 
+        time_data -= (time_data[-1]-time_data[0])
         
         # The scope fails to transfer data if we ask for data too quickly :(
         # Trail and error suggests we need a 50 ms waiting time here
