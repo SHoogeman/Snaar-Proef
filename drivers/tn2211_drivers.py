@@ -93,6 +93,12 @@ class Scope:
         self.dev.chunk_size = 20 * 1024 * 1024 # default value is 20*1024(20k bytes)
         print("Setting memory depth to 10k points")
         self.write("ACQ:MDEP 10k")
+        self.HORI_NUM = 10 # for our scope
+        self.tdiv_enum = [200e-12,500e-12, 1e-9,\
+         2e-9, 5e-9, 10e-9, 20e-9, 50e-9, 100e-9, 200e-9, 500e-9, \
+         1e-6, 2e-6, 5e-6, 10e-6, 20e-6, 50e-6, 100e-6, 200e-6, 500e-6, \
+         1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3, 200e-3, 500e-3, \
+         1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
 
     def query(self, query_string):
         return self.dev.query(query_string)
@@ -113,66 +119,72 @@ class Scope:
                 f.write(data)
         display(Image(data))
 
+    def parse_preamble(self, recv):
+        WAVE_ARRAY_1 = recv[0x3c:0x3f + 1]
+        wave_array_count = recv[0x74:0x77 + 1]
+        first_point = recv[0x84:0x87 + 1]
+        sp = recv[0x88:0x8b + 1]
+        v_scale = recv[0x9c:0x9f + 1]
+        v_offset = recv[0xa0:0xa3 + 1]
+        interval = recv[0xb0:0xb3 + 1]
+        code_per_div = recv[0xa4:0Xa7 + 1]
+        adc_bit = recv[0xac:0Xad + 1]
+        delay = recv[0xb4:0xbb + 1]
+        tdiv = recv[0x144:0x145 + 1]
+        probe = recv[0x148:0x14b + 1]
+        data_bytes = struct.unpack('i', WAVE_ARRAY_1)[0]
+        point_num = struct.unpack('i', wave_array_count)[0]
+        fp = struct.unpack('i', first_point)[0]
+        sp = struct.unpack('i', sp)[0]
+        interval = struct.unpack('f', interval)[0]
+        delay = struct.unpack('d', delay)[0]
+        tdiv_index = struct.unpack('h', tdiv)[0]
+        probe = struct.unpack('f', probe)[0]
+        vdiv = struct.unpack('f', v_scale)[0] * probe
+        offset = struct.unpack('f', v_offset)[0] * probe
+        code = struct.unpack('f', code_per_div)[0]
+        adc_bit = struct.unpack('h', adc_bit)[0]
+        tdiv = self.tdiv_enum[tdiv_index]
+        return vdiv, offset, interval, delay, tdiv, code, adc_bit
+            
     def get_trace(self, channel_number, npoints = 10000, save_file=True):
         ''' Function for grabbing traces from the scope. Channel can be a number
         from 1 to 4. You can use npoints = "all" to grab all the points in the 
         trace.'''
         # This is largerly copy-pasted from the manual
         sds = self.dev
-        
-        HORI_NUM = 10 # for our scope
-        tdiv_enum = [200e-12,500e-12, 1e-9,\
-         2e-9, 5e-9, 10e-9, 20e-9, 50e-9, 100e-9, 200e-9, 500e-9, \
-         1e-6, 2e-6, 5e-6, 10e-6, 20e-6, 50e-6, 100e-6, 200e-6, 500e-6, \
-         1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3, 200e-3, 500e-3, \
-         1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
-        
-        def parse_preamble(recv):
-            WAVE_ARRAY_1 = recv[0x3c:0x3f + 1]
-            wave_array_count = recv[0x74:0x77 + 1]
-            first_point = recv[0x84:0x87 + 1]
-            sp = recv[0x88:0x8b + 1]
-            v_scale = recv[0x9c:0x9f + 1]
-            v_offset = recv[0xa0:0xa3 + 1]
-            interval = recv[0xb0:0xb3 + 1]
-            code_per_div = recv[0xa4:0Xa7 + 1]
-            adc_bit = recv[0xac:0Xad + 1]
-            delay = recv[0xb4:0xbb + 1]
-            tdiv = recv[0x144:0x145 + 1]
-            probe = recv[0x148:0x14b + 1]
-            data_bytes = struct.unpack('i', WAVE_ARRAY_1)[0]
-            point_num = struct.unpack('i', wave_array_count)[0]
-            fp = struct.unpack('i', first_point)[0]
-            sp = struct.unpack('i', sp)[0]
-            interval = struct.unpack('f', interval)[0]
-            delay = struct.unpack('d', delay)[0]
-            tdiv_index = struct.unpack('h', tdiv)[0]
-            probe = struct.unpack('f', probe)[0]
-            vdiv = struct.unpack('f', v_scale)[0] * probe
-            offset = struct.unpack('f', v_offset)[0] * probe
-            code = struct.unpack('f', code_per_div)[0]
-            adc_bit = struct.unpack('h', adc_bit)[0]
-            tdiv = tdiv_enum[tdiv_index]
-            return vdiv, offset, interval, delay, tdiv, code, adc_bit
-               
+
+        # I didn't include ability to download math traces, which is not so hard! 
+        # They can be downloaded with just F# instead of C#. 
+        # For now will hack it: ints will be considered channels numbers
+        # For math channels, we will accept strings F1, F2, F3, F4 
         # Get the channel waveform parameter data blocks and parse them
-        if channel_number > 0 and channel_number < 5:
-            # First check if channel is on: if not, then just return
-            if "OFF" in sds.query("CHAN%d:SWIT?" % channel_number):
-                print("Warning: Channel %d is currently off, please turn it on first" % channel_number)
-                return
+        # OK, but this does not work for FFT...for that, there is a different function.
+        if isinstance(channel_number, int):
+            if channel_number > 0 and channel_number < 5:
+                # First check if channel is on: if not, then just return
+                if "OFF" in sds.query("CHAN%d:SWIT?" % channel_number):
+                    print("Warning: Channel %d is currently off, please turn it on first" % channel_number)
+                    return
+                else:
+                    sds.write("WAV:SOUR C%d" % channel_number)
             else:
-                sds.write("WAV:SOUR C%d" % channel_number)
-        else:
-            print("Channel number must be a number from 1 to 4")
-            return
+                print("Channel number must be a number from 1 to 4")
+                return
+        else: # must be a math "function" channel
+            if channel_number in ("F1", "F2", "F3", "F4"):
+                sds.write("WAV:SOUR %s" % channel_number)
+            else:
+                print("Invalid function trace %s" % channel_number)
+                return
+                
         # Get the preamble
         sds.write("WAV:PREamble?")
         recv_all = sds.read_raw()
         # Find the starting byte 
         recv = recv_all[recv_all.find(b'#') + 11:]
         # Parse the preamble
-        vdiv, ofst, interval, trdl, tdiv, vcode_per, adc_bit = parse_preamble(recv)
+        vdiv, ofst, interval, trdl, tdiv, vcode_per, adc_bit = self.parse_preamble(recv)
         # Set the starting datapoint for the transfer
         sds.write(":WAVeform:STARt 0")
         # Get the waveform points and confirm the number of waveform slice reads
@@ -228,8 +240,8 @@ class Scope:
             recv_byte += recv_rtn[data_start:]
         # Unpack signed byte data.
         if adc_bit > 8:
-            #print("points", points)
-            #print("len(recv_byte)", len(recv_byte))
+            print("points", points)
+            print("len(recv_byte)", len(recv_byte))
             convert_data = struct.unpack("=%dh"%points, recv_byte)
         else:
             convert_data = struct.unpack("%db"%points, recv_byte)
@@ -240,7 +252,7 @@ class Scope:
         N = len(convert_data)
         i = np.linspace(0, N-1, N)
         volt_value = convert_data / vcode_per * float(vdiv) -float(ofst)
-        time_data = float(tdiv)*HORI_NUM/2 + i*interval + float(trdl)
+        time_data = float(tdiv)*self.HORI_NUM/2 + i*interval + float(trdl)
         # This is not giving the right values for the timebase. This hack
         # will hopefullyu fix it. 
         time_data -= (time_data[-1]-time_data[0])
@@ -255,6 +267,92 @@ class Scope:
             timestamp = datetime.datetime.now()
             filename = timestamp.strftime("scope_trace_%Y-%m-%d-%H.%M.%S.dat")
             np.savetxt(get_date_folder() + filename, np.array([time_data,volt_value]).T)
+            print("Saved to file", filename)
+
             
         return time_data, volt_value
 
+    def get_fft(self, function_number=1, npoints=all, save_file=True):
+        ''' Function for grabbing FFT data from the scope. function_number can be a number
+        from 1 to 4. You can use npoints = "all" to grab all the points in the 
+        trace. By default, it will always grab all the points from the FFT trace
+
+        It will return three things: 
+        
+        freq, spectrum, unit = get_fft(...)
+
+        freq: the frequency values
+        spectrum: the spectral values (in either Vrms, dBVrms, or dBm)
+        unit: the setting of the units used on the oscilloscope
+        '''
+        if function_number < 1 or function_number > 4:
+            print("Function number must a number from 1 and 4")
+            return
+        # Copy pasted from the user manual again, and then tweaked...
+        self.write("WAV:SOUR F1")
+        self.write("WAV:PREamble?")
+        recv_all = self.read_raw()
+        recv = recv_all[recv_all.find(b'#') + 11:]
+        vdiv, ofst, interval, trdl, tdiv, vcode_per,adc_bit = self.parse_preamble(recv)
+        display_len = int(trdl/interval)+1
+        unit = self.query("FUNC1:FFT:UNIT?").strip() # {Vrms,DBm,DBVrms}
+        if unit == "DBm":
+            load = float(self.query("FUNC1:FFT:LOAD?").strip())
+        mode = self.query("FUNC1:FFT:MODE?").strip() # {NORMal|MAXHold|AVERage[,num]}
+        # Get the waveform data
+        self.write("WAV:DATA?")
+        recv_all = self.read_raw().rstrip()
+        block_start = recv_all.find(b'#')
+        data_digit = int(recv_all[block_start + 1:block_start + 2])
+        data_start = block_start + 2 + data_digit
+        recv = recv_all[data_start:]
+        #print(len(recv))
+        # Unpack data.
+        volt_value = []
+        freq_value = []
+        len_data = int(len(recv) / 8) ##采样定理f/2
+        #print(len_data)
+        #print(recv[0:4])
+        # Original for loop...maybe fast enough.
+        for i in range(0, len_data):
+            data_rel = struct.unpack("f", recv[8 * i:8 * i + 4])
+            data_imag = struct.unpack("f", recv[8 * i + 4:8 * i + 8])
+            data_rel = list(data_rel)[0]
+            data_imag = list(data_imag)[0]
+            if mode == "NORMal":
+                data_float = math.sqrt(pow(float(data_rel), 2) + pow(float(data_imag), 2))
+            else:
+                data_float = float(data_rel)
+            if unit == "DBVrms":
+                data_float = 20*math.log10(data_float)
+            elif unit == "DBm":
+                data_float = 10 * math.log10(data_float*data_float/load/1E-3)
+            volt_value.append(data_float)
+            freq_value.append(i*interval)
+
+        if save_file:
+            timestamp = datetime.datetime.now()
+            filename = timestamp.strftime(f"scope_fft_{unit}_%Y-%m-%d-%H.%M.%S.dat")
+            np.savetxt(get_date_folder() + filename, np.array([freq_value,volt_value]).T)
+            print("Saved to file", filename)
+            
+        return freq_value, volt_value, unit
+
+# rm = pyvisa.ResourceManager()
+# rm.list_resources()
+#
+# scope = Scope("SDS")
+# scope.write("ACQ:MDEP 1M")
+#
+# f,v, unit = scope.get_fft(1)
+#
+# print(unit)
+#
+# import matplotlib.pyplot as plt
+# plt.plot(f,v)
+# plt.ylabel(unit)
+# plt.xlim(0,2e3)
+#
+#
+#
+#
