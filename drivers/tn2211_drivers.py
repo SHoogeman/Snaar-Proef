@@ -147,10 +147,11 @@ class Scope:
         tdiv = self.tdiv_enum[tdiv_index]
         return vdiv, offset, interval, delay, tdiv, code, adc_bit
             
-    def get_trace(self, channel_number, npoints = 10000, save_file=True):
+    def get_trace(self, channel_number, npoints = "all", save_file=True):
         ''' Function for grabbing traces from the scope. Channel can be a number
         from 1 to 4. You can use npoints = "all" to grab all the points in the 
-        trace.'''
+        trace (default). Can also specify F1/F2/F3/F4 strings as option for channel 
+        number, which will return the math trace in fucntion 1/2/3/4.'''
         # This is largerly copy-pasted from the manual
         sds = self.dev
 
@@ -198,7 +199,7 @@ class Scope:
                 points = points_in_trace
             else:
                 points = npoints
-        print("Retreiving %d points" % points)
+        # print("Retreiving %d points" % points)
         one_piece_num = float(sds.query(":WAVeform:MAXPoint?").strip())
         read_times = math.ceil(points / one_piece_num)
         # Set the number of read points per slice, if the waveform points is greater than the maximum
@@ -240,8 +241,8 @@ class Scope:
             recv_byte += recv_rtn[data_start:]
         # Unpack signed byte data.
         if adc_bit > 8:
-            print("points", points)
-            print("len(recv_byte)", len(recv_byte))
+            #print("points", points)
+            #print("len(recv_byte)", len(recv_byte))
             convert_data = struct.unpack("=%dh"%points, recv_byte)
         else:
             convert_data = struct.unpack("%db"%points, recv_byte)
