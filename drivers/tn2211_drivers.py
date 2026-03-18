@@ -290,7 +290,7 @@ class Scope:
             print("Function number must a number from 1 and 4")
             return
         # Copy pasted from the user manual again, and then tweaked...
-        self.write("WAV:SOUR F1")
+        self.write("WAV:SOUR F%d" % function_number)
         self.write("WAV:PREamble?")
         recv_all = self.read_raw()
         recv = recv_all[recv_all.find(b'#') + 11:]
