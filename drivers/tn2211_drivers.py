@@ -147,7 +147,7 @@ class Scope:
         tdiv = self.tdiv_enum[tdiv_index]
         return vdiv, offset, interval, delay, tdiv, code, adc_bit
             
-    def get_trace(self, channel_number, npoints = "all", save_file=True):
+    def get_trace(self, channel_number, npoints = "all", save_file=True, filename=None):
         ''' Function for grabbing traces from the scope. Channel can be a number
         from 1 to 4. You can use npoints = "all" to grab all the points in the 
         trace (default). Can also specify F1/F2/F3/F4 strings as option for channel 
@@ -266,14 +266,18 @@ class Scope:
 
         if save_file:
             timestamp = datetime.datetime.now()
-            filename = timestamp.strftime("scope_trace_%Y-%m-%d-%H.%M.%S.dat")
-            np.savetxt(get_date_folder() + filename, np.array([time_data,volt_value]).T)
+            if filename is None:
+                filename = timestamp.strftime("scope_trace_%Y-%m-%d-%H.%M.%S.dat")
+                np.savetxt(get_date_folder() + filename, np.array([time_data,volt_value]).T)
+            else:
+                np.savetxt(get_date_folder() + filename, np.array([time_data,volt_value]).T)
+
             print("Saved to file", filename)
 
             
         return time_data, volt_value
 
-    def get_fft(self, function_number=1, npoints=all, save_file=True):
+    def get_fft(self, function_number=1, npoints=all, save_file=True, filename=None):
         ''' Function for grabbing FFT data from the scope. function_number can be a number
         from 1 to 4. You can use npoints = "all" to grab all the points in the 
         trace. By default, it will always grab all the points from the FFT trace
@@ -332,9 +336,12 @@ class Scope:
             freq_value.append(i*interval)
 
         if save_file:
-            timestamp = datetime.datetime.now()
-            filename = timestamp.strftime(f"scope_fft_{unit}_%Y-%m-%d-%H.%M.%S.dat")
-            np.savetxt(get_date_folder() + filename, np.array([freq_value,volt_value]).T)
+            if filename is None:
+                timestamp = datetime.datetime.now()
+                filename = timestamp.strftime(f"scope_fft_{unit}_%Y-%m-%d-%H.%M.%S.dat")
+                np.savetxt(get_date_folder() + filename, np.array([freq_value,volt_value]).T)
+            else:
+                np.savetxt(get_date_folder() + filename, np.array([freq_value,volt_value]).T)
             print("Saved to file", filename)
             
         return freq_value, volt_value, unit
